@@ -1,0 +1,21 @@
+Subject,Grade,Date,Time,Venue,Students
+mathematics,7,2023-11-10,09:00,Room A,30
+english,8,2023-11-10,09:00,Room B,25
+history,7,2023-11-10,14:00,Room C,20
+physical sciences,8,2023-11-10,14:00,Room D,40
+geography,9,2023-11-11,09:00,Room E,28
+literature,12,2023-11-11,09:00,Room F,32
+technology,8,2023-11-11,14:00,Room G,24
+life sciences,11,2023-11-11,14:00,Room H,35
+arts and culture,7,2023-11-12,09:00,Room I,22
+computer sciences,10,2023-11-12,09:00,Room J,31
+mathematics,9,2023-11-12,14:00,Room K,27
+english,11,2023-11-12,14:00,Room L,29
+history,8,2023-11-13,09:00,Room M,23
+physical sciences,10,2023-11-13,09:00,Room N,38
+geography,10,2023-11-13,14:00,Room O,26
+literature,10,2023-11-13,14:00,Room P,30
+technology,9,2023-11-14,09:00,Room Q,28
+life sciences,9,2023-11-14,09:00,Room R,34
+arts and culture,8,2023-11-14,14:00,Room S,21
+computer sciences,11,2023-11-14,14:00,Room T,33
