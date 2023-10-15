@@ -1,51 +1,71 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
+import csv
+from datetime import datetime, timedelta
+from io import StringIO
 
-def invigilation_allocation(teachers_data, exams_data):
-    subjects = exams_data['Subject'].unique()
-    tally = {teacher: 0 for teacher in teachers_data['name']}
-    allocations = {}
-    schedule_df = exams_data.copy()
+# Functions
+def is_teacher_available(teacher, date):
+    return date > teacher['unavailable_until']
 
-    for _, exam in exams_data.iterrows():
-        subject = exam['Subject']
-        subject_teachers = teachers_data[teachers_data['subjects'].str.contains(subject)]['name'].tolist()
-        
-        if not subject_teachers:
-            allocations[exam['Subject']] = 'No teachers available'
-            continue
+def invigilation_cost(teacher, exam_subject, date):
+    if not is_teacher_available(teacher, date):
+        return float('inf')
+    cost = 0
+    if exam_subject in teacher['subjects'].split(' and '):
+        cost += 10
+    cost += teacher['invigilation_count']
+    return cost
 
-        min_tally = min([tally[teacher] for teacher in subject_teachers])
-        available_teachers = [teacher for teacher in subject_teachers if tally[teacher] == min_tally]
+st.title('Invigilation Schedule Generator')
 
-        allocated_teacher = np.random.choice(available_teachers)
-        allocations[exam['Subject']] = allocated_teacher
-        tally[allocated_teacher] += 1
+teachers_file = st.file_uploader("Upload Teachers CSV", type=['csv'])
+exams_file = st.file_uploader("Upload Exams CSV", type=['csv'])
 
-        schedule_df.loc[schedule_df['Subject'] == subject, 'Invigilator'] = allocated_teacher
+if teachers_file and exams_file:
+    teachers_csv = StringIO(teachers_file.getvalue().decode('utf-8'))
+    exams_csv = StringIO(exams_file.getvalue().decode('utf-8'))
 
-    return allocations, tally, schedule_df
+    # Read teacher data from uploaded CSV
+    csvFile = csv.DictReader(teachers_csv)
+    teachers = [row for row in csvFile]
 
+    # Initialize additional teacher info
+    for teacher in teachers:
+        teacher['unavailable_until'] = datetime(2000, 1, 1).date()
+        teacher['invigilation_count'] = 0
 
-def main():
-    st.title('Invigilation Allocation')
-    
-    uploaded_teachers = st.file_uploader("Upload teachers data", type=['csv'])
-    uploaded_exams = st.file_uploader("Upload exams data", type=['csv'])
+    # Read exam timetable from uploaded CSV
+    csvFile = csv.DictReader(exams_csv)
+    exams = [row for row in csvFile]
 
-    if uploaded_teachers and uploaded_exams:
-        teachers_data = pd.read_csv(uploaded_teachers)
-        exams_data = pd.read_csv(uploaded_exams)
-        
-        if st.button("Generate Allocation"):
-            allocations, tally, schedule_df = invigilation_allocation(teachers_data, exams_data)
-            st.write("Allocations:")
-            st.write(allocations)
-            st.write("Tally:")
-            st.write(tally)
-            st.write("Invigilation Schedule:")
-            st.table(schedule_df)
+    # Allocate teachers to exams
+    allocation = {}
 
-if __name__ == '__main__':
-    main()
+    for exam in exams:
+        date = datetime.strptime(exam['Date'], "%Y-%m-%d").date()
+        required_teachers = -(-int(exam['Students']) // 30)
+        allocated_teachers = []
+
+        for _ in range(required_teachers):
+            available_teachers = [teacher for teacher in teachers if is_teacher_available(teacher, date)]
+            if not available_teachers:
+                break
+
+            available_teachers.sort(key=lambda t: invigilation_cost(t, exam['Subject'], date))
+            best_teacher = available_teachers.pop(0)
+
+            allocated_teachers.append(best_teacher['name'])
+            best_teacher['invigilation_count'] += 1
+
+            if exam['Subject'] in best_teacher['subjects'].split(' and '):
+                best_teacher['unavailable_until'] = date + timedelta(days=2)
+
+        allocation[(exam['Date'], exam['Time'], exam['Venue'])] = allocated_teachers
+
+    # Display results in Streamlit
+    for key, value in allocation.items():
+        st.write(f"On {key[0]} at {key[1]} in {key[2]}, the allocated teachers are: {', '.join(value)}")
+
+    st.write("\nNumber of invigilations for each teacher:")
+    for teacher in teachers:
+        st.write(f"{teacher['name']}: {teacher['invigilation_count']} times")
