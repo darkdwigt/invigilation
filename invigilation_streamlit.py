@@ -1,47 +1,51 @@
-# invigilation_streamlit.py
-
 import streamlit as st
 import pandas as pd
-from io import StringIO
-import datetime
-
-# (Existing invigilation logic code goes here, but we'll modify input/output parts.)
+import numpy as np
 
 def invigilation_allocation(teachers_data, exams_data):
-    # (Place the invigilation logic here, modifying the way we read and return data.)
-    # Instead of reading from a file, you will use the provided dataframes: teachers_data & exams_data.
-    # Return the allocation results and the tally instead of printing them.
-    pass
+    subjects = exams_data['Subject'].unique()
+    tally = {teacher: 0 for teacher in teachers_data['name']}
+    allocations = {}
+    schedule_df = exams_data.copy()
 
-# Streamlit UI
+    for _, exam in exams_data.iterrows():
+        subject = exam['Subject']
+        subject_teachers = teachers_data[teachers_data['subjects'].str.contains(subject)]['name'].tolist()
+        
+        if not subject_teachers:
+            allocations[exam['Subject']] = 'No teachers available'
+            continue
 
-st.title("Invigilation Allocation Tool")
+        min_tally = min([tally[teacher] for teacher in subject_teachers])
+        available_teachers = [teacher for teacher in subject_teachers if tally[teacher] == min_tally]
 
-st.sidebar.header("Upload CSV Data")
+        allocated_teacher = np.random.choice(available_teachers)
+        allocations[exam['Subject']] = allocated_teacher
+        tally[allocated_teacher] += 1
 
-# Upload teachers data CSV
-uploaded_file_teachers = st.sidebar.file_uploader("Upload Teachers CSV", type=["csv"])
+        schedule_df.loc[schedule_df['Subject'] == subject, 'Invigilator'] = allocated_teacher
 
-# Upload exams data CSV
-uploaded_file_exams = st.sidebar.file_uploader("Upload Exams CSV", type=["csv"])
+    return allocations, tally, schedule_df
 
-if uploaded_file_teachers is not None and uploaded_file_exams is not None:
-    teachers_data = pd.read_csv(uploaded_file_teachers)
-    exams_data = pd.read_csv(uploaded_file_exams)
+
+def main():
+    st.title('Invigilation Allocation')
     
-    st.sidebar.text("Teachers and Exams data uploaded successfully!")
+    uploaded_teachers = st.file_uploader("Upload teachers data", type=['csv'])
+    uploaded_exams = st.file_uploader("Upload exams data", type=['csv'])
 
-    # Execute allocation
-    if st.sidebar.button("Allocate Invigilation"):
-        allocations, tally = invigilation_allocation(teachers_data, exams_data)
-
-        st.header("Allocations")
-        st.write(allocations)
-
-        st.header("Tally")
-        st.write(tally)
-else:
-    st.warning("Please upload both Teachers and Exams CSV files to proceed.")
+    if uploaded_teachers and uploaded_exams:
+        teachers_data = pd.read_csv(uploaded_teachers)
+        exams_data = pd.read_csv(uploaded_exams)
+        
+        if st.button("Generate Allocation"):
+            allocations, tally, schedule_df = invigilation_allocation(teachers_data, exams_data)
+            st.write("Allocations:")
+            st.write(allocations)
+            st.write("Tally:")
+            st.write(tally)
+            st.write("Invigilation Schedule:")
+            st.table(schedule_df)
 
 if __name__ == '__main__':
-    st.run()
+    main()
